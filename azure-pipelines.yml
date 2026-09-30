@@ -2,56 +2,76 @@ trigger:
 - main
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: 'ubuntu-latest'
 
 variables:
   imageRepository: 'student-flask-project'
   dockerfilePath: '$(Build.SourcesDirectory)/Dockerfile'
   tag: '$(Build.BuildId)'
-  containerRegistry: 'myContainerRegistry'  # replace with your Azure Container Registry service connection name
-  sonarServiceConnection: 'sonarqube-service-connection'  # replace with your Azure DevOps service connection name
+
+  # Docker Hub Service Connection Name
+  containerRegistry: 'dockerhub-connection'
+
+  # SonarCloud Service Connection Name
+  sonarCloudServiceConnection: 'sonarcloud-connection'
+
+  # SonarCloud Organization Key
+  sonarOrganization: 'kchandrasekhar'
+
+  # SonarCloud Project
   sonarProjectKey: 'student-flask-project'
   sonarProjectName: 'student-flask-project'
 
 steps:
+
+# Use Python
 - task: UsePythonVersion@0
-  displayName: Use Python 3.11
+  displayName: 'Use Python 3.11'
   inputs:
     versionSpec: '3.11'
 
+# Install Dependencies
 - script: |
     python -m pip install --upgrade pip
-    python -m pip install Flask==2.2.5 pytest pytest-cov
-  displayName: Install Python dependencies
+    pip install -r requirements.txt
+    pip install pytest pytest-cov
+  displayName: 'Install Dependencies'
 
-- task: SonarQubePrepare@5
-  displayName: Prepare SonarQube analysis
+# SonarCloud Preparation
+- task: SonarCloudPrepare@3
+  displayName: 'Prepare SonarCloud Analysis'
   inputs:
-    SonarQube: '$(student_key)'  # Azure DevOps service connection to your SonarQube server
+    SonarCloud: '$(sonarCloudServiceConnection)'
+    organization: '$(sonarOrganization)'
     scannerMode: 'CLI'
-    configMode: 'file'
-    cliProjectKey: '$(kchandrasekhar)'
-    cliProjectName: '$(kchandrasekhar)'
-    configFile: '$(Build.SourcesDirectory)/sonar-project.properties'
+    configMode: 'manual'
+    cliProjectKey: '$(sonarProjectKey)'
+    cliProjectName: '$(sonarProjectName)'
 
+# Run Tests
 - script: |
     pytest --maxfail=1 --disable-warnings --junitxml=test-results.xml
-  displayName: Run unit tests
+  displayName: 'Run Unit Tests'
   continueOnError: true
 
-- task: SonarQubeAnalyze@5
-  displayName: Run SonarQube analysis
+# Run SonarCloud Analysis
+- task: SonarCloudAnalyze@3
+  displayName: 'Run SonarCloud Analysis'
 
-- task: SonarQubePublish@5
-  displayName: Publish SonarQube results
-
-- task: Docker@2
-  displayName: Build and push container image
+# Publish Quality Gate
+- task: SonarCloudPublish@3
+  displayName: 'Publish Quality Gate'
   inputs:
-    command: buildAndPush
-    containerRegistry: $(containerRegistry)
-    repository: $(imageRepository)
-    dockerfile: $(dockerfilePath)
+    pollingTimeoutSec: '300'
+
+# Build Docker Image
+- task: Docker@2
+  displayName: 'Build and Push Docker Image'
+  inputs:
+    command: 'buildAndPush'
+    containerRegistry: '$(containerRegistry)'
+    repository: '$(imageRepository)'
+    dockerfile: '$(dockerfilePath)'
     tags: |
       $(tag)
       latest
