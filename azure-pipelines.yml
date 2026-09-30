@@ -13,7 +13,7 @@ variables:
   containerRegistry: 'dockerhub-connection'
 
   # SonarCloud Service Connection Name
-  sonarCloudServiceConnection: 'sonarcloud-connection'
+  sonarCloudServiceConnection: 'student_key'
 
   # SonarCloud Organization Key
   sonarOrganization: 'kchandrasekhar'
@@ -24,20 +24,17 @@ variables:
 
 steps:
 
-# Use Python
 - task: UsePythonVersion@0
   displayName: 'Use Python 3.11'
   inputs:
     versionSpec: '3.11'
 
-# Install Dependencies
 - script: |
     python -m pip install --upgrade pip
     pip install -r requirements.txt
     pip install pytest pytest-cov
   displayName: 'Install Dependencies'
 
-# SonarCloud Preparation
 - task: SonarCloudPrepare@3
   displayName: 'Prepare SonarCloud Analysis'
   inputs:
@@ -48,23 +45,19 @@ steps:
     cliProjectKey: '$(sonarProjectKey)'
     cliProjectName: '$(sonarProjectName)'
 
-# Run Tests
 - script: |
     pytest --maxfail=1 --disable-warnings --junitxml=test-results.xml
   displayName: 'Run Unit Tests'
   continueOnError: true
 
-# Run SonarCloud Analysis
 - task: SonarCloudAnalyze@3
   displayName: 'Run SonarCloud Analysis'
 
-# Publish Quality Gate
 - task: SonarCloudPublish@3
   displayName: 'Publish Quality Gate'
   inputs:
     pollingTimeoutSec: '300'
 
-# Build Docker Image
 - task: Docker@2
   displayName: 'Build and Push Docker Image'
   inputs:
